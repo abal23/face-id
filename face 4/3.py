@@ -28,15 +28,30 @@ else:
     classes_info = {}
 
 # --- Tạo mapping ID chung cho CNN ---
-id_to_label = {}
-label_to_name = {}
+# id_to_label = {}
+# label_to_name = {}
+# idx = 0
+# for lop, students in classes_info.items():
+#     for sid, name in students.items():
+#         id_to_label[idx] = f"{lop}-{sid}"
+#         label_to_name[f"{lop}-{sid}"] = name
+#         idx += 1
+# NUM_CLASSES = idx
+id_to_label = []
+label_to_name = []
 idx = 0
 for lop, students in classes_info.items():
+    # print(f'lop:{lop},student:{students}')
     for sid, name in students.items():
-        id_to_label[idx] = f"{lop}-{sid}"
-        label_to_name[f"{lop}-{sid}"] = name
+        # print(f'sid: {sid}, name" {name}')
+        id_to_label.append(f"{lop}-{sid}")
+        label_to_name.append( name)
+
         idx += 1
 NUM_CLASSES = idx
+id_to_name={}
+for i in range(len(label_to_name)):
+    id_to_name[i]=label_to_name[i]
 
 # --- Chọn lớp cần điểm danh ---
 print("Các lớp có sẵn:")
@@ -48,7 +63,8 @@ if lop_chon not in classes_info:
     print("❌ Lớp không tồn tại!")
     exit()
 
-attendance = {sid: False for sid in classes_info[lop_chon]}
+# attendance = {sid: False for sid in classes_info[lop_chon]}
+attendance = [False for i in range(idx)]
 
 # --- Mở webcam ---
 cam = cv2.VideoCapture(1, cv2.CAP_DSHOW)
@@ -85,13 +101,22 @@ while True:
             idx_pred = np.argmax(preds)
             conf_cnn = preds[0][idx_pred] * 100
 
-            label = id_to_label[idx_pred]        # Lấy nhãn dạng "Lop-SID"
-            lop_id, sid = label.split('-')
-            name = label_to_name[label]
-
+                   # Lấy nhãn dạng "Lop-SID"
+            lop=[]
+            for i in id_to_label:
+                lop_id, sid = i.split('-')
+                lop.append(lop_id)
+            # name = label_to_name[label]
             # Chỉ đánh dấu attendance nếu thuộc lớp đang điểm danh
-            if lop_id == lop_chon and conf_cnn > 50:
-                attendance[sid] = True
+            if conf_cnn > 50:
+                name=id_to_name.get(idx_pred, "unkown")
+                if lop[idx_pred] ==lop_chon:
+                    attendance[(idx_pred)] = True
+                    print(idx_pred)
+                    
+
+            else:
+                name='Unknown'
 
             # Vẽ khung và tên + độ chính xác
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -99,7 +124,7 @@ while True:
             cv2.putText(frame, f"Acc: {round(conf_cnn)}%", (x1+5, y2+25), font, 0.7, (255,255,0), 1)
 
     # Hiển thị số người có mặt trong lớp
-    cv2.putText(frame, f"Đã điểm danh: {sum(attendance.values())}/{len(attendance)}", (20,40),
+    cv2.putText(frame, f"Đã điểm danh: {sum(attendance)}/{len(classes_info[lop_chon])}", (20,40),
                 font, 0.8, (0,255,255), 2)
 
     cv2.imshow(f"Điểm danh lớp {lop_chon}", frame)
@@ -110,8 +135,9 @@ cam.release()
 cv2.destroyAllWindows()
 
 # --- Tổng kết ---
-present = [classes_info[lop_chon][sid] for sid, checked in attendance.items() if checked]
-absent = [classes_info[lop_chon][sid] for sid, checked in attendance.items() if not checked]
+present=[id_to_name.get(i) for i in range(len(attendance)) if attendance[i] is True]
+
+absent=[i for i in classes_info[lop_chon].values() if i not in present]
 
 print(f"\n✅ Lớp {lop_chon}: {len(present)}/{len(classes_info[lop_chon])} sinh viên có mặt.")
 if absent:
